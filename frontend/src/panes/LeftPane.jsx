@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { submitJob, setProvider } from '../api'
 
-export default function LeftPane() {
+export default function LeftPane({ onOpenSettings }) {
   const [project_name, setName] = useState('forge-mvp')
   const [spec, setSpec] = useState('Build a CLI that prints "FORGE" and a pytest that asserts output contains FORGE')
   const [provider, setProv] = useState('AUTO')
@@ -23,7 +23,12 @@ export default function LeftPane() {
 
   return (
     <div className="pane left">
-      <h2>FORGE</h2>
+      <div className="settings-header">
+        <h2>FORGE</h2>
+        <button className="settings-icon" onClick={onOpenSettings} title="Settings">
+          ⚙️
+        </button>
+      </div>
       <p className="tagline">Where Concepts Become Systems</p>
       
       <h3>New Build</h3>

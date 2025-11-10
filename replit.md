@@ -40,11 +40,24 @@ forge/
 
 ## Configuration
 
+### Data Storage
+- **Windows**: `%APPDATA%\FORGE\` (e.g., C:\Users\Username\AppData\Roaming\FORGE\)
+- **Unix/Mac**: `~/.forge/`
+- **Contents**: builder.db, workspaces/, .forge_key
+
+### Settings Management
+- **UI**: Settings gear icon in left pane opens configuration modal
+- **LM Studio URL**: Configurable local LLM endpoint (default: http://localhost:1234/v1)
+- **OpenAI API Key**: Encrypted at rest with Fernet cipher, stored in database
+- **Precedence**: Database settings → Environment variables → Config defaults
+
 ### Environment Variables
 - `MODE`: LOCAL or CLOUD (determines default LLM provider)
 - `LLM_PROVIDER`: AUTO, LMSTUDIO, or OPENAI
-- `LMSTUDIO_BASE_URL`: Local LM Studio endpoint (default: http://localhost:1234/v1)
-- `OPENAI_API_KEY`: OpenAI API key (optional, required for OPENAI provider)
+- `LMSTUDIO_BASE_URL`: Local LM Studio endpoint (overridden by settings)
+- `OPENAI_API_KEY`: OpenAI API key (overridden by encrypted database setting)
+- `FORGE_DATA_DIR`: Custom data directory location (optional)
+- `FORGE_ENCRYPTION_KEY`: Custom encryption key (optional, auto-generated if not set)
 
 ### Workflow Orchestration
 1. User submits spec via UI
@@ -57,7 +70,17 @@ forge/
 8. Final status: succeeded or failed
 
 ## Recent Changes
-- **November 10, 2025**: Full system tested and operational
+- **November 10, 2025 (Phase 2)**: Settings UI and Windows Installer
+  - Added Settings modal with gear icon for configuring LM Studio URL and OpenAI API key
+  - Implemented encrypted settings storage with Fernet cipher (API keys encrypted at rest)
+  - Moved database, workspaces, and encryption key to user's AppData directory
+  - Settings precedence: database → env vars → config defaults
+  - Created PyInstaller configuration for freezing backend into standalone .exe
+  - Updated Electron launcher with production mode detection (app.isPackaged)
+  - Configured electron-builder with NSIS installer and resource bundling
+  - Created build.py orchestration script for complete Windows packaging pipeline
+
+- **November 10, 2025 (Phase 1)**: Full system tested and operational
   - Fixed worker queue with error handling and graceful failure recovery
   - Fixed Electron launcher CWD issue (now runs from repo root)
   - Configured Vite proxy for seamless frontend-backend communication
@@ -69,8 +92,27 @@ forge/
 ## User Preferences
 None yet.
 
+## Windows Build Instructions
+
+To build a distributable Windows installer:
+
+```bash
+# Install PyInstaller (if not already installed)
+pip install pyinstaller
+
+# Build everything (backend + frontend + Electron installer)
+python build.py --all --clean
+
+# Or build individual components
+python build.py --backend    # Freeze backend only
+python build.py --frontend   # Build frontend only
+python build.py --electron   # Package Electron app with NSIS installer
+```
+
+The installer will be created in `launcher/dist/FORGE Setup X.X.X.exe`
+
 ## Next Steps
-- Test with actual LLM providers
-- Wire up staged installer scripts
-- Add tokenizer-aware chunking
-- Implement artifact serving to preview pane
+- Test full Windows build pipeline end-to-end
+- Add tokenizer-aware chunking for large specs
+- Implement artifact preview in right pane
+- Add Mac/Linux build configurations

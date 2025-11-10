@@ -1,11 +1,12 @@
 import os
 from openai import OpenAI
 from backend.config import settings
+from backend.services.settings_service import settings_service
 from .base import LLM
 
 class OpenAIProvider(LLM):
     def __init__(self):
-        api_key = settings.OPENAI_API_KEY or os.getenv("OPENAI_API_KEY")
+        api_key = settings_service.get_openai_api_key()
         self.client = OpenAI(api_key=api_key)
     
     def complete(self, *, system: str, user: str, max_tokens: int) -> str:

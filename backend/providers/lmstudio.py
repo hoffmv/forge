@@ -1,10 +1,12 @@
 import requests
 from backend.config import settings
+from backend.services.settings_service import settings_service
 from .base import LLM
 
 class LMStudioProvider(LLM):
     def complete(self, *, system: str, user: str, max_tokens: int) -> str:
-        url = f"{settings.LMSTUDIO_BASE_URL}/chat/completions"
+        base_url = settings_service.get_lmstudio_url()
+        url = f"{base_url}/chat/completions"
         payload = {
             "model": settings.LMSTUDIO_MODEL,
             "messages": [

@@ -48,6 +48,7 @@ workspaces/
 builder.db
 *.db
 .env
+.forge_key
 
 # Electron
 out/
