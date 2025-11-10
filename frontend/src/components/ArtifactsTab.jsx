@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react'
-import { listWorkspaceFiles, readWorkspaceFile } from '../api'
+import { listWorkspaceFiles, readWorkspaceFile, downloadWorkspace, getWorkspacePath } from '../api'
 
 export default function ArtifactsTab({ selectedJob }) {
   const [files, setFiles] = useState([])
   const [selectedFile, setSelectedFile] = useState(null)
   const [fileContent, setFileContent] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [workspacePath, setWorkspacePath] = useState(null)
+  const [downloading, setDownloading] = useState(false)
 
   useEffect(() => {
     if (!selectedJob || selectedJob.status !== 'succeeded') {
       setFiles([])
       setSelectedFile(null)
       setFileContent(null)
+      setWorkspacePath(null)
       return
     }
 
@@ -19,6 +22,10 @@ export default function ArtifactsTab({ selectedJob }) {
       try {
         const result = await listWorkspaceFiles(selectedJob.id)
         setFiles(result.files || [])
+        
+        // Also fetch workspace path
+        const pathInfo = await getWorkspacePath(selectedJob.id)
+        setWorkspacePath(pathInfo)
       } catch (err) {
         console.error('Failed to list files:', err)
         setFiles([])
@@ -27,6 +34,24 @@ export default function ArtifactsTab({ selectedJob }) {
 
     fetchFiles()
   }, [selectedJob?.id, selectedJob?.status])
+
+  const handleDownload = async () => {
+    setDownloading(true)
+    try {
+      await downloadWorkspace(selectedJob.id)
+    } catch (err) {
+      alert(`Failed to download workspace: ${err.message}`)
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  const handleCopyPath = () => {
+    if (workspacePath?.workspace_path) {
+      navigator.clipboard.writeText(workspacePath.workspace_path)
+      alert(`Copied path to clipboard:\n${workspacePath.workspace_path}`)
+    }
+  }
 
   const handleFileClick = async (file) => {
     setSelectedFile(file)
@@ -80,6 +105,66 @@ export default function ArtifactsTab({ selectedJob }) {
           <h4>Generated Files</h4>
           <span className="file-count">{files.length} files</span>
         </div>
+        
+        {/* Export Actions */}
+        <div style={{ padding: '15px', borderBottom: '1px solid #2B2B2B', background: '#1a1a1a' }}>
+          <button
+            onClick={handleDownload}
+            disabled={downloading}
+            style={{
+              width: '100%',
+              padding: '10px',
+              background: downloading ? '#444' : '#FF6E00',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '6px',
+              fontWeight: 'bold',
+              cursor: downloading ? 'not-allowed' : 'pointer',
+              marginBottom: '8px',
+              fontSize: '13px'
+            }}
+          >
+            {downloading ? '⏳ Downloading...' : '📥 Download as ZIP'}
+          </button>
+          
+          {workspacePath && (
+            <button
+              onClick={handleCopyPath}
+              style={{
+                width: '100%',
+                padding: '10px',
+                background: '#2B2B2B',
+                color: '#FF6E00',
+                border: '1px solid #FF6E00',
+                borderRadius: '6px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                fontSize: '13px'
+              }}
+              title={workspacePath.workspace_path}
+            >
+              📂 Copy Workspace Path
+            </button>
+          )}
+          
+          {workspacePath && (
+            <div style={{
+              marginTop: '10px',
+              padding: '8px',
+              background: '#2B2B2B',
+              borderRadius: '4px',
+              fontSize: '11px',
+              color: '#888',
+              wordBreak: 'break-all'
+            }}>
+              <div style={{ color: '#FF6E00', fontWeight: 'bold', marginBottom: '4px' }}>
+                Workspace Location:
+              </div>
+              {workspacePath.workspace_path}
+            </div>
+          )}
+        </div>
+        
         <ul className="file-tree">
           {files.map((file, i) => (
             <li

@@ -177,3 +177,35 @@ export async function uploadSpecFile(file) {
   
   return r.json();
 }
+
+// Export workspace
+export async function downloadWorkspace(jobId) {
+  const r = await fetch(API(`/export/${jobId}/zip`));
+  
+  if (!r.ok) {
+    const error = await r.json().catch(() => ({ detail: 'Failed to download workspace' }));
+    throw new Error(error.detail || 'Failed to download workspace');
+  }
+  
+  // Trigger download
+  const blob = await r.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `workspace-${jobId}.zip`;
+  document.body.appendChild(a);
+  a.click();
+  window.URL.revokeObjectURL(url);
+  document.body.removeChild(a);
+}
+
+export async function getWorkspacePath(jobId) {
+  const r = await fetch(API(`/export/${jobId}/path`));
+  
+  if (!r.ok) {
+    const error = await r.json().catch(() => ({ detail: 'Failed to get workspace path' }));
+    throw new Error(error.detail || 'Failed to get workspace path');
+  }
+  
+  return r.json();
+}
