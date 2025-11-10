@@ -70,9 +70,17 @@ forge/
 8. Final status: succeeded or failed
 
 ## Recent Changes
+- **November 10, 2025 (Phase 5)**: Replit-Style UI Layout Redesign
+  - Reorganized UI to match Replit Agent's intuitive 2-column layout
+  - Left pane: Build form + activity feed showing submission history
+  - Right pane: Tabbed interface with Build Process, Jobs, and Console tabs
+  - Cleaner navigation with top tabs instead of 3-pane horizontal layout
+  - Activity feed shows last 5 build submissions with timestamps
+  - Auto-selects newly submitted jobs for immediate feedback
+
 - **November 10, 2025 (Phase 4)**: Real-Time Build Process Visibility
   - Added streaming logs to orchestrator showing each step: planning, coding, testing
-  - Preview pane now displays chain-of-thought build process in real-time
+  - Build Process tab displays chain-of-thought build process in real-time
   - Shows plan JSON, generated files with full content, and test results
   - Auto-scrolls to latest activity with fade-in animations
   - Color-coded log types: status (ember), plan (blue), files (green), tests (red/green)
