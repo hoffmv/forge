@@ -20,9 +20,9 @@ function getFrontendPath() {
   if (isDev) {
     return null // Use dev server
   }
-  // In production, frontend dist is in app resources folder
-  const resourcePath = process.resourcesPath
-  return path.join(resourcePath, 'frontend', 'index.html')
+  // In production, frontend is bundled with the app (not in resources)
+  // __dirname in packaged app points to app.asar/
+  return path.join(__dirname, 'frontend', 'index.html')
 }
 
 function startBackend() {

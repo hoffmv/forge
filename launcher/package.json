@@ -19,10 +19,6 @@
       {
         "from": "../dist/backend/forge-backend.exe",
         "to": "forge-backend.exe"
-      },
-      {
-        "from": "../dist/frontend",
-        "to": "frontend"
       }
     ],
     "win": {
@@ -37,7 +33,12 @@
     "files": [
       "main.js",
       "forge-builder.config.json",
-      "package.json"
+      "package.json",
+      {
+        "from": "../dist/frontend",
+        "to": "frontend",
+        "filter": ["**/*"]
+      }
     ]
   }
 }
