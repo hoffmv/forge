@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { submitJob, setProvider, createProject, listProjects } from '../api'
+import ChatTab from '../components/ChatTab'
 
 export default function LeftPane({ onOpenSettings, onJobSubmitted, selectedProject, onSelectProject }) {
   const [project_name, setName] = useState('forge-mvp')
@@ -231,6 +232,30 @@ export default function LeftPane({ onOpenSettings, onJobSubmitted, selectedProje
           </div>
         </div>
       )}
+
+      {/* Chat Interface - Always visible at bottom */}
+      <div style={{ 
+        marginTop: '20px', 
+        borderTop: '2px solid #FF6E00',
+        paddingTop: '15px'
+      }}>
+        <h3 style={{ marginBottom: '10px' }}>Conversational Mode</h3>
+        {selectedProject ? (
+          <ChatTab 
+            projectId={selectedProject.id} 
+            onJobCreated={onJobSubmitted}
+          />
+        ) : (
+          <div style={{ 
+            padding: '20px', 
+            textAlign: 'center', 
+            color: '#888',
+            fontSize: '13px'
+          }}>
+            Select a project above or create a new one to start chatting
+          </div>
+        )}
+      </div>
     </div>
   )
 }

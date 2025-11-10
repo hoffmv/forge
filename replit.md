@@ -29,9 +29,8 @@ forge/
 - **Worker**: Background job processor
 
 ### Frontend Components
-- **Left Pane**: Build form with project name, spec, and provider toggle
-- **Center Pane**: Jobs list with live status and logs viewer
-- **Right Pane**: Preview pane for built artifacts
+- **Left Pane**: Projects list, Build form (New/Modify toggle), and Conversational Chat (always visible at bottom)
+- **Right Pane**: Tabbed interface with Build Process, Artifacts, Jobs, and Console viewers
 
 ## Branding
 - **Name**: FORGE — Where Concepts Become Systems
@@ -75,12 +74,12 @@ forge/
   - Created conversational orchestrator with 'create' and 'modify' modes
   - Context-aware modification: reads existing workspace files + conversation history before making changes
   - Backend API endpoints for project management (/projects/ - create, list, get, delete)
-  - Chat UI component fully integrated into tabbed interface
+  - **Chat UI positioned in left pane (always visible)** - enables real-time collaboration while monitoring build process
   - Projects panel in left pane shows all projects with selection UI
   - Dual-mode build form: "New Project" creates fresh projects, "Modify Selected" iterates on existing ones
   - Fixed pytest import error by setting PYTHONPATH in test runner
   - Fixed ChatTab job state management to pass full job objects
-  - Users can now iterate on projects through natural language conversation, matching Replit Agent experience
+  - Users can now iterate on projects through natural language conversation while simultaneously watching builds, artifacts, and logs
 
 - **November 10, 2025 (Phase 6)**: Artifacts Viewer
   - Added Artifacts tab to view generated code directly in the browser

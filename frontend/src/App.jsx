@@ -20,8 +20,6 @@ export default function App() {
         <TabbedPane 
           selectedJob={selectedJob} 
           onSelectJob={setSelectedJob}
-          selectedProject={selectedProject}
-          onJobCreated={setSelectedJob}
         />
       </div>
       <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
