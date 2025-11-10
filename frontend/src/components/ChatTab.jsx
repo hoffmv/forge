@@ -46,7 +46,12 @@ export default function ChatTab({ projectId, onJobCreated }) {
       });
 
       if (onJobCreated) {
-        onJobCreated(result.job_id);
+        // Pass a full job object with the expected shape
+        onJobCreated({ 
+          id: result.job_id, 
+          status: result.status || 'queued',
+          project_name: `project_${projectId.slice(0, 8)}`
+        });
       }
 
       setInput('');
