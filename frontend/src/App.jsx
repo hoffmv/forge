@@ -6,12 +6,23 @@ import SettingsModal from './components/SettingsModal'
 export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [selectedJob, setSelectedJob] = useState(null)
+  const [selectedProject, setSelectedProject] = useState(null)
 
   return (
     <>
       <div className="two-column-layout">
-        <LeftPane onOpenSettings={() => setSettingsOpen(true)} onJobSubmitted={setSelectedJob} />
-        <TabbedPane selectedJob={selectedJob} onSelectJob={setSelectedJob} />
+        <LeftPane 
+          onOpenSettings={() => setSettingsOpen(true)} 
+          onJobSubmitted={setSelectedJob}
+          selectedProject={selectedProject}
+          onSelectProject={setSelectedProject}
+        />
+        <TabbedPane 
+          selectedJob={selectedJob} 
+          onSelectJob={setSelectedJob}
+          selectedProject={selectedProject}
+          onJobCreated={setSelectedJob}
+        />
       </div>
       <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </>
