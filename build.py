@@ -85,26 +85,27 @@ def package_electron():
     """Package Electron application with NSIS installer"""
     print("\n📦 Packaging Electron application...")
     
-    # Create launcher dist directory
-    launcher_dist = LAUNCHER_DIR / "dist"
-    launcher_dist.mkdir(parents=True, exist_ok=True)
-    
-    # Copy backend executable
+    # Verify that backend and frontend builds exist
     backend_exe = DIST_DIR / "backend" / "forge-backend.exe"
-    if backend_exe.exists():
-        shutil.copy(backend_exe, launcher_dist / "forge-backend.exe")
-    else:
-        print(f"WARNING: Backend executable not found at {backend_exe}")
+    if not backend_exe.exists():
+        print(f"ERROR: Backend executable not found at {backend_exe}")
+        print("Run with --backend first to build the backend")
+        sys.exit(1)
     
-    # Copy frontend build
-    if (DIST_DIR / "frontend").exists():
-        shutil.copytree(DIST_DIR / "frontend", launcher_dist / "frontend", dirs_exist_ok=True)
+    if not (DIST_DIR / "frontend").exists():
+        print(f"ERROR: Frontend build not found at {DIST_DIR / 'frontend'}")
+        print("Run with --frontend first to build the frontend")
+        sys.exit(1)
+    
+    print(f"  Backend found: {backend_exe}")
+    print(f"  Frontend found: {DIST_DIR / 'frontend'}")
     
     # Install launcher dependencies
     print("  Installing launcher dependencies...")
     run_command(["npm", "install"], cwd=LAUNCHER_DIR, shell=True)
     
     # Build with electron-builder (creates NSIS installer)
+    # electron-builder will automatically package extraResources from ../dist/
     print("  Building Electron package with NSIS installer...")
     run_command(["npm", "run", "dist"], cwd=LAUNCHER_DIR, shell=True)
     
