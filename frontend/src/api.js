@@ -159,3 +159,21 @@ export async function addMessage(projectId, role, content, jobId = null) {
   }
   return r.json();
 }
+
+// File upload
+export async function uploadSpecFile(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const r = await fetch(API('/upload/spec'), {
+    method: 'POST',
+    body: formData
+  });
+  
+  if (!r.ok) {
+    const error = await r.json().catch(() => ({ detail: 'Failed to upload file' }));
+    throw new Error(error.detail || 'Failed to upload file');
+  }
+  
+  return r.json();
+}

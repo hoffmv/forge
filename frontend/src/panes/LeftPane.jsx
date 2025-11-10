@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import { submitJob, setProvider, createProject, listProjects } from '../api'
+import React, { useState, useEffect, useRef } from 'react'
+import { submitJob, setProvider, createProject, listProjects, uploadSpecFile } from '../api'
 import ChatTab from '../components/ChatTab'
 
 export default function LeftPane({ onOpenSettings, onJobSubmitted, selectedProject, onSelectProject }) {
@@ -11,6 +11,8 @@ export default function LeftPane({ onOpenSettings, onJobSubmitted, selectedProje
   const [projects, setProjects] = useState([])
   const [mode, setMode] = useState('new') // 'new' or 'existing'
   const [buildFormCollapsed, setBuildFormCollapsed] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
     loadProjects()
@@ -84,6 +86,34 @@ export default function LeftPane({ onOpenSettings, onJobSubmitted, selectedProje
   async function setProvRemote(p) {
     setProv(p)
     await setProvider(p)
+  }
+
+  async function handleFileUpload(event) {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+    try {
+      const result = await uploadSpecFile(file)
+      setSpec(result.text)
+      setActivity(prev => [...prev, {
+        time: new Date().toLocaleTimeString(),
+        message: `Loaded "${file.name}" (${result.length} chars)`,
+        type: 'success'
+      }])
+    } catch (err) {
+      setActivity(prev => [...prev, {
+        time: new Date().toLocaleTimeString(),
+        message: `Upload failed: ${err.message}`,
+        type: 'error'
+      }])
+    } finally {
+      setUploading(false)
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
   }
 
   return (
@@ -233,14 +263,41 @@ export default function LeftPane({ onOpenSettings, onJobSubmitted, selectedProje
               </>
             )}
             
-            <label style={{ fontSize: '12px' }}>
-              {mode === 'new' ? 'Specification' : 'Modification Request'}
-            </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <label style={{ fontSize: '12px' }}>
+                {mode === 'new' ? 'Specification' : 'Modification Request'}
+              </label>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                style={{
+                  padding: '4px 10px',
+                  background: '#444',
+                  color: '#FF6E00',
+                  border: '1px solid #FF6E00',
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  cursor: uploading ? 'not-allowed' : 'pointer',
+                  opacity: uploading ? 0.5 : 1,
+                  fontWeight: 'bold'
+                }}
+              >
+                {uploading ? '📤 Uploading...' : '📁 Upload File'}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".txt,.md,.docx"
+                onChange={handleFileUpload}
+                style={{ display: 'none' }}
+              />
+            </div>
             <textarea
               value={spec}
               onChange={e => setSpec(e.target.value)}
               rows={mode === 'new' ? 8 : 6}
-              placeholder={mode === 'new' ? 'Describe what you want to build...' : 'Describe what you want to change...'}
+              placeholder={mode === 'new' ? 'Describe what you want to build...\n\nOr upload a .txt, .md, or .docx file using the button above' : 'Describe what you want to change...'}
             />
             
             <button onClick={run} disabled={submitting || (mode === 'existing' && !selectedProject)}>
