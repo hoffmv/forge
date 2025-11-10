@@ -70,10 +70,18 @@ forge/
 8. Final status: succeeded or failed
 
 ## Recent Changes
+- **November 10, 2025 (Phase 6)**: Artifacts Viewer
+  - Added Artifacts tab to view generated code directly in the browser
+  - File tree sidebar shows all generated files with icons and sizes
+  - Code viewer displays file contents with syntax highlighting
+  - Backend endpoints to list workspace files and read file content
+  - Security: Path traversal protection ensures files stay within workspace
+  - Users can now see and explore their generated code without terminal access
+
 - **November 10, 2025 (Phase 5)**: Replit-Style UI Layout Redesign
   - Reorganized UI to match Replit Agent's intuitive 2-column layout
   - Left pane: Build form + activity feed showing submission history
-  - Right pane: Tabbed interface with Build Process, Jobs, and Console tabs
+  - Right pane: Tabbed interface with Build Process, Artifacts, Jobs, and Console tabs
   - Cleaner navigation with top tabs instead of 3-pane horizontal layout
   - Activity feed shows last 5 build submissions with timestamps
   - Auto-selects newly submitted jobs for immediate feedback

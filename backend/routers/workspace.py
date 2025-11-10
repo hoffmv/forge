@@ -6,6 +6,25 @@ from backend.config import settings
 
 router = APIRouter()
 
+def find_workspace_path(job):
+    """Find the workspace directory for a job by matching project name"""
+    ws_root = Path(settings.WORKSPACE_ROOT)
+    if not ws_root.exists():
+        return None
+    
+    # Find directories matching the pattern: {project_name}_{8_chars}
+    project_name = job['project_name'].replace(' ', '_')
+    pattern = f"{project_name}_*"
+    
+    # Get all matching directories sorted by modification time (most recent first)
+    matching_dirs = list(ws_root.glob(pattern))
+    if not matching_dirs:
+        return None
+    
+    # Return the most recently modified one (should be the workspace for this job)
+    matching_dirs.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    return matching_dirs[0]
+
 @router.get("/{job_id}/files")
 def list_workspace_files(job_id: str):
     """List all files in a job's workspace"""
@@ -13,8 +32,8 @@ def list_workspace_files(job_id: str):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     
-    workspace_path = Path(job.workspace_path)
-    if not workspace_path.exists():
+    workspace_path = find_workspace_path(job)
+    if not workspace_path or not workspace_path.exists():
         return {"files": []}
     
     files = []
@@ -48,7 +67,9 @@ def read_workspace_file(job_id: str, file_path: str):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     
-    workspace_path = Path(job.workspace_path)
+    workspace_path = find_workspace_path(job)
+    if not workspace_path:
+        raise HTTPException(status_code=404, detail="Workspace not found")
     target_file = workspace_path / file_path
     
     # Security check: ensure file is within workspace
