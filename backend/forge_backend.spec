@@ -1,15 +1,28 @@
 # PyInstaller spec file for FORGE backend
 # -*- mode: python ; coding: utf-8 -*-
-from PyInstaller.utils.hooks import collect_dynamic_libs, collect_data_files
+from PyInstaller.utils.hooks import collect_dynamic_libs, collect_data_files, collect_submodules, collect_all
 
 block_cipher = None
+
+# Collect all pydantic and related packages
+pydantic_imports = collect_submodules('pydantic')
+pydantic_settings_imports = collect_submodules('pydantic_settings')
+pydantic_core_imports = collect_submodules('pydantic_core')
+
+# Collect all data files
+datas = []
+datas += collect_data_files('certifi')
+datas += collect_data_files('pydantic')
+datas += collect_data_files('pydantic_settings')
+datas += collect_data_files('pydantic_core')
 
 a = Analysis(
     ['app.py'],
     pathex=['backend'],
     binaries=collect_dynamic_libs('sqlite3'),
-    datas=collect_data_files('certifi'),
+    datas=datas,
     hiddenimports=[
+        # Uvicorn and async support
         'uvicorn.logging',
         'uvicorn.loops',
         'uvicorn.loops.auto',
@@ -20,7 +33,14 @@ a = Analysis(
         'uvicorn.protocols.websockets.auto',
         'uvicorn.lifespan',
         'uvicorn.lifespan.on',
+        # Pydantic and settings
+        'pydantic',
         'pydantic_settings',
+        'pydantic_core',
+        'pydantic.fields',
+        'pydantic.main',
+        'pydantic.types',
+        # Backend modules
         'backend.routers.health',
         'backend.routers.jobs',
         'backend.routers.settings',
@@ -36,7 +56,7 @@ a = Analysis(
         'backend.providers.lmstudio',
         'backend.providers.openai_cloud',
         'backend.worker.queue_worker',
-    ],
+    ] + pydantic_imports + pydantic_settings_imports + pydantic_core_imports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
