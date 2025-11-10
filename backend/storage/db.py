@@ -22,6 +22,7 @@ def create_job(payload: dict):
         "status": "queued",
         "created": time.time(),
         "report": None,
+        "logs": [],  # Real-time build process logs
     }
     cur.execute("INSERT INTO jobs (id, data) VALUES (?, ?)", (j["id"], json.dumps(j)))
     conn.commit()
@@ -52,3 +53,22 @@ def set_runtime_provider(provider: str):
 def get_runtime_provider():
     row = cur.execute("SELECT v FROM kv WHERE k='provider'").fetchone()
     return row[0] if row else None
+
+def append_job_log(job_id: str, log_type: str, content: str | dict):
+    """Append a log entry to the job's logs array for real-time visibility"""
+    j = get_job(job_id)
+    if j is None:
+        raise ValueError(f"Job {job_id} not found")
+    
+    if "logs" not in j:
+        j["logs"] = []
+    
+    log_entry = {
+        "timestamp": time.time(),
+        "type": log_type,  # 'plan', 'file', 'test', 'output', 'error'
+        "content": content
+    }
+    j["logs"].append(log_entry)
+    
+    cur.execute("UPDATE jobs SET data=? WHERE id=?", (json.dumps(j), job_id))
+    conn.commit()
