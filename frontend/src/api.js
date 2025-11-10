@@ -96,3 +96,66 @@ export async function readWorkspaceFile(jobId, filePath) {
   }
   return r.json();
 }
+
+// Project management
+export async function createProject(name, description = '') {
+  const r = await fetch(API('/projects/'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, description })
+  });
+  if (!r.ok) {
+    const error = await r.json().catch(() => ({ detail: 'Failed to create project' }));
+    throw new Error(error.detail || 'Failed to create project');
+  }
+  return r.json();
+}
+
+export async function listProjects() {
+  const r = await fetch(API('/projects/'));
+  if (!r.ok) {
+    const error = await r.json().catch(() => ({ detail: 'Failed to list projects' }));
+    throw new Error(error.detail || 'Failed to list projects');
+  }
+  return r.json();
+}
+
+export async function getProject(projectId) {
+  const r = await fetch(API(`/projects/${projectId}`));
+  if (!r.ok) {
+    const error = await r.json().catch(() => ({ detail: 'Failed to get project' }));
+    throw new Error(error.detail || 'Failed to get project');
+  }
+  return r.json();
+}
+
+export async function deleteProject(projectId) {
+  const r = await fetch(API(`/projects/${projectId}`), { method: 'DELETE' });
+  if (!r.ok) {
+    const error = await r.json().catch(() => ({ detail: 'Failed to delete project' }));
+    throw new Error(error.detail || 'Failed to delete project');
+  }
+  return r.json();
+}
+
+export async function getMessages(projectId) {
+  const r = await fetch(API(`/projects/${projectId}/messages`));
+  if (!r.ok) {
+    const error = await r.json().catch(() => ({ detail: 'Failed to get messages' }));
+    throw new Error(error.detail || 'Failed to get messages');
+  }
+  return r.json();
+}
+
+export async function addMessage(projectId, role, content, jobId = null) {
+  const r = await fetch(API(`/projects/${projectId}/messages`), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role, content, job_id: jobId })
+  });
+  if (!r.ok) {
+    const error = await r.json().catch(() => ({ detail: 'Failed to add message' }));
+    throw new Error(error.detail || 'Failed to add message');
+  }
+  return r.json();
+}

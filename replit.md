@@ -70,6 +70,16 @@ forge/
 8. Final status: succeeded or failed
 
 ## Recent Changes
+- **November 10, 2025 (Phase 7)**: Conversational Iteration System
+  - Added projects table and messages table for persistent conversation tracking
+  - Created conversational orchestrator with 'create' and 'modify' modes
+  - Context-aware modification: reads existing workspace files before making changes
+  - Conversation history included in LLM context for iterative improvements
+  - Backend API endpoints for project management (/projects/)
+  - Chat UI component for conversational interaction (in progress)
+  - Users can now iterate on projects through natural language conversation
+  - Fixed pytest import error by setting PYTHONPATH in test runner
+
 - **November 10, 2025 (Phase 6)**: Artifacts Viewer
   - Added Artifacts tab to view generated code directly in the browser
   - File tree sidebar shows all generated files with icons and sizes
