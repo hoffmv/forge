@@ -403,3 +403,85 @@ button:disabled {
   color: #ff6e6e;
   border: 1px solid #5a3a3a;
 }
+
+/* Build Logs Styles */
+.build-logs {
+  background: #0e0e0e;
+  border-radius: 8px;
+  padding: 16px;
+  max-height: 85vh;
+  overflow-y: auto;
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.log-entry {
+  margin-bottom: 16px;
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.log-status {
+  color: #aaa;
+  padding: 6px 12px;
+  border-left: 3px solid #FF6E00;
+  background: rgba(255, 110, 0, 0.05);
+  border-radius: 4px;
+}
+
+.log-plan {
+  background: #1a1a2e;
+  border: 1px solid #2e2e4e;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.log-file {
+  background: #1a2e1a;
+  border: 1px solid #2e4e2e;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.log-test {
+  background: #2e1a1a;
+  border: 1px solid #4e2e2e;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.log-test.passed {
+  background: #1a2e1a;
+  border-color: #2e4e2e;
+}
+
+.log-header {
+  color: #FF6E00;
+  font-weight: 600;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.log-code {
+  background: #0a0a0a;
+  color: #eaeaea;
+  padding: 12px;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.test-error {
+  color: #ff6e6e;
+  display: block;
+  margin-top: 8px;
+}
