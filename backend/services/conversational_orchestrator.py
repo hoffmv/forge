@@ -107,8 +107,10 @@ def get_workspace_context(workspace_path: str) -> str:
     return "\n".join(context_lines)
 
 
-def build_conversation_context(project_id: str) -> str:
+def build_conversation_context(project_id: str | None) -> str:
     """Build conversation history for context"""
+    if not project_id:
+        return ""
     messages = get_messages(project_id)
     if not messages:
         return ""
@@ -122,7 +124,7 @@ def build_conversation_context(project_id: str) -> str:
     return "\n".join(lines)
 
 
-def run_conversational_build(job: dict, project_id: str = None, mode: str = "create"):
+def run_conversational_build(job: dict, project_id: str | None = None, mode: str = "create"):
     """
     Run a build with conversational context
     
