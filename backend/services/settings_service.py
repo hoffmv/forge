@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 from cryptography.fernet import Fernet
-from backend.storage.db import cur, conn
+from backend.storage.db import execute_one, execute_query, execute_update
 
 class SettingsService:
     def __init__(self):
@@ -38,7 +38,7 @@ class SettingsService:
         return self._cipher.decrypt(encrypted_value.encode()).decode()
     
     def get_setting(self, key: str, encrypted: bool = False) -> str | None:
-        row = cur.execute("SELECT v FROM kv WHERE k=?", (f"setting_{key}",)).fetchone()
+        row = execute_one("SELECT v FROM kv WHERE k=?", (f"setting_{key}",))
         if not row:
             return None
         value = row[0]
@@ -52,15 +52,13 @@ class SettingsService:
     def set_setting(self, key: str, value: str, encrypted: bool = False):
         if encrypted:
             value = self._encrypt(value)
-        cur.execute(
+        execute_update(
             "INSERT INTO kv (k,v) VALUES (?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v",
             (f"setting_{key}", value)
         )
-        conn.commit()
     
     def delete_setting(self, key: str):
-        cur.execute("DELETE FROM kv WHERE k=?", (f"setting_{key}",))
-        conn.commit()
+        execute_update("DELETE FROM kv WHERE k=?", (f"setting_{key}",))
     
     def get_lmstudio_url(self) -> str:
         from backend.config import settings
@@ -74,7 +72,7 @@ class SettingsService:
         return db_value or env_value or None
     
     def get_all_settings(self) -> dict:
-        rows = cur.execute("SELECT k, v FROM kv WHERE k LIKE 'setting_%'").fetchall()
+        rows = execute_query("SELECT k, v FROM kv WHERE k LIKE 'setting_%'")
         result = {}
         for k, v in rows:
             key = k.replace("setting_", "")

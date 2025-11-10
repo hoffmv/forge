@@ -35,7 +35,11 @@ def apply_fenced(repo: str, text: str):
     """Apply fenced code blocks to files and return list of created/modified files"""
     files_created = []
     for header, body in re.findall(r"```(.*?)\n([\s\S]*?)```", text):
-        fname = header.strip().split()[0]
+        header_parts = header.strip().split()
+        if not header_parts:
+            # Skip code blocks without a filename
+            continue
+        fname = header_parts[0]
         full = os.path.join(repo, fname)
         os.makedirs(os.path.dirname(full), exist_ok=True)
         with open(full, "w", encoding="utf-8") as f:
