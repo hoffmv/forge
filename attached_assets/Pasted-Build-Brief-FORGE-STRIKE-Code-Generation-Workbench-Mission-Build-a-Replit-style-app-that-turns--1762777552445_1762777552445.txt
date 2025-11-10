@@ -1,0 +1,155 @@
+Build Brief: FORGE — STRIKE Code-Generation Workbench
+
+Mission: Build a Replit-style app that turns a natural-language project spec into a working code repo with tests, runs the tests, auto-fixes failures, and packages artifacts. Must run with Local LLM via LM Studio (openai/gpt-oss-20b) and optionally OpenAI via toggle.
+
+Outcomes (what you must deliver)
+
+Web app with 3 panes (Replit vibe):
+
+Left: “New Build” form (project name, spec textarea, provider toggle: AUTO | LMSTUDIO | OPENAI), Submit button.
+
+Center: Jobs list (status: queued/running/succeeded/failed) + live logs/test output viewer.
+
+Right: “Preview” pane (basic HTML preview now; later can serve built artifacts).
+
+Backend service exposing:
+
+POST /jobs → enqueue a build (project_name, spec, optional max_iters default 3).
+
+GET /jobs/{id} → current status + last report/logs.
+
+GET /jobs → recent jobs (descending by created).
+
+POST /jobs/provider → set runtime provider (LMSTUDIO | OPENAI | AUTO).
+
+GET /health → {status: "ok"}
+
+Local LLM first: Use LM Studio (OpenAI-compatible) at http://localhost:1234/v1, model openai/gpt-oss-20b. If provider = OPENAI, use OPENAI_API_KEY and OPENAI_MODEL (default gpt-4.1-mini). If AUTO, prefer local when MODE=LOCAL.
+
+Planner → Coder → Verifier → Fixer loop:
+
+Planner: turns the first chunk of the spec into a compact plan (files, tests, steps).
+
+Coder: generates code only as fenced blocks per file (no prose).
+
+Verifier: runs tests (pytest). If no tests were generated, treat as pass for MVP.
+
+Fixer: on failure, reads trimmed stderr/stdout and returns minimal patches (fenced blocks).
+
+Repeat up to MAX_ITERS (default 3). Mark success/failure and store report.
+
+Token discipline: Chunk long specs to stay under context limits; cap reply tokens; send only necessary excerpts back to the model.
+
+Electron desktop wrapper (dev-ready): One click launches backend and frontend; installer scripts are staged (not executed yet) to wire up after validation.
+
+Config via env:
+
+MODE=LOCAL|CLOUD (default LOCAL on my machine, CLOUD on Replit)
+
+LLM_PROVIDER=AUTO|LMSTUDIO|OPENAI (default AUTO)
+
+LMSTUDIO_BASE_URL (default http://localhost:1234/v1)
+
+LMSTUDIO_MODEL=openai/gpt-oss-20b
+
+OPENAI_API_KEY (optional)
+
+OPENAI_MODEL=gpt-4.1-mini
+
+WORKSPACE_ROOT=workspaces, DB_PATH=builder.db
+
+MAX_ITERS=3, MAX_INPUT_CHARS=120000, MAX_REPLY_TOKENS=2048
+
+Non-Functional Requirements
+
+Monorepo (backend, frontend, launcher). Keep internal interfaces clean for future S3/Postgres swap-ins.
+
+Deterministic patching: accept only fenced file blocks
+
+```path/to/file.ext
+<file content>
+
+and write them verbatim. No diff/patch parsing for MVP.
+
+
+Resilience: Never crash on empty tests; never exceed token limits; always return a job status.
+
+Security: No external file execution beyond running local tests in a sandboxed subprocess.
+
+Flow (step-by-step behavior)
+
+User submits spec in the left pane.
+
+Backend creates job (queued) → worker picks it (running).
+
+Chunk spec; Planner produces plan JSON (files[], tests[], steps[]).
+
+Coder iterates over chunks, emitting fenced files; write to workspace.
+
+Verifier runs tests. If fail → Fixer returns fenced patches; write; retry up to MAX_ITERS.
+
+Mark succeeded or failed. Center pane shows report/logs. Right pane shows simple preview.
+
+Provider logic
+
+If UI sets provider → use it.
+
+Else if AUTO:
+
+If MODE=LOCAL, use LM Studio.
+
+Else use OpenAI.
+
+Desktop app (staged)
+
+Provide Electron app that:
+
+Spawns backend (FastAPI/uvicorn) and frontend (Vite dev or built bundle).
+
+Opens a window (1600×900) with custom icon (ember-orange hammer + neural circuit).
+
+Ship staged installer configs (Inno Setup/NSIS, Electron Builder) but do not auto-package in this MVP.
+
+Branding
+
+Name: FORGE — Where Concepts Become Systems.
+
+Theme: Dark UI with ember-orange highlights (#FF6E00), graphite backgrounds.
+
+Icon: Ember-orange hammer striking a stylized neural circuit.
+
+Acceptance tests (what “done” looks like)
+
+Can submit “Build a CLI that prints ‘FORGE’ and a pytest that asserts output contains FORGE” → job finishes succeeded. Center pane shows passing pytest output; artifacts written to a workspace directory.
+
+Changing provider to OPENAI (with key) still works; to LMSTUDIO uses local endpoint without code changes.
+
+Submitting an intentionally failing test causes one Fixer attempt; if still failing after MAX_ITERS, job ends failed with readable stderr in the center pane.
+
+Electron npm start opens the app and successfully proxies to the running backend/frontend processes.
+
+Environment / Secrets to set (Replit)
+
+MODE=CLOUD (Replit)
+
+LLM_PROVIDER=AUTO
+
+LMSTUDIO_BASE_URL=http://localhost:1234/v1
+
+LMSTUDIO_MODEL=openai/gpt-oss-20b
+
+OPENAI_MODEL=gpt-4.1-mini
+
+(Optional) OPENAI_API_KEY=sk-...
+
+Stretch goals after MVP (do not block delivery)
+
+Tokenizer-aware chunking (gguf/tiktoken).
+
+Serve built artifacts to the preview pane.
+
+Git init + commit per iteration; diff-aware Fixer.
+
+Org/workspace auth; S3/Postgres backends.
+
+Build this now. Name the project folder forge.

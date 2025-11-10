@@ -1,0 +1,827 @@
+# FORGE — Local/Cloud Builder MVP (LM Studio + Electron + Replit)
+
+A production‑ready MVP you can import to Replit, push to GitHub, and install locally as a desktop app. It:
+- Runs against **LM Studio (openai/gpt-oss-20b)** locally and **OpenAI** in the cloud
+- Has a **UI toggle** to switch providers (AUTO/LMSTUDIO/OPENAI)
+- Enforces **token discipline** with chunking + iterate/fix loop
+- Ships a **Replit‑style 3‑pane UI** (build form/file tree → logs/tests → preview)
+- Builds to a **clickable desktop app** via **Electron** (backend + frontend auto‑launched)
+- **Installer scripts are staged** (Inno Setup & Electron Builder) to wire up after validation
+
+---
+
+## Monorepo Layout
+```
+forge/
+├─ replit.yaml
+├─ .env.example
+├─ backend/                       # FastAPI orchestrator (renamed)
+│  ├─ pyproject.toml
+│  ├─ app.py
+│  ├─ config.py
+│  ├─ routers/
+│  │  ├─ health.py
+│  │  └─ jobs.py
+│  ├─ services/
+│  │  ├─ llm_router.py
+│  │  ├─ orchestrator.py
+│  │  ├─ repo_scaffold.py
+│  │  ├─ evaluator.py
+│  │  ├─ chunker.py
+│  │  └─ prompts/
+│  │     ├─ system_planner.txt
+│  │     ├─ system_coder.txt
+│  │     └─ system_fixer.txt
+│  ├─ providers/
+│  │  ├─ base.py
+│  │  ├─ lmstudio.py
+│  │  └─ openai_cloud.py
+│  ├─ storage/
+│  │  ├─ db.py
+│  │  └─ fs.py
+│  ├─ worker/
+│  │  └─ queue_worker.py
+│  └─ tests/
+│     └─ test_smoke.py
+├─ frontend/                      # React/Vite (Replit‑style)
+│  ├─ index.html
+│  ├─ package.json
+│  ├─ vite.config.js
+│  └─ src/
+│     ├─ main.jsx
+│     ├─ App.jsx
+│     ├─ api.js
+│     ├─ panes/
+│     │  ├─ LeftPane.jsx
+│     │  ├─ CenterPane.jsx
+│     │  └─ RightPane.jsx
+│     └─ styles.css
+├─ launcher/                      # Electron desktop wrapper
+│  ├─ package.json
+│  ├─ main.js
+│  ├─ forge.desktop.js
+│  ├─ icon.png                    # Ember‑orange neural hammer (placeholder)
+│  └─ forge-builder.config.json   # ports, paths
+└─ installers/                    # STAGED — wire up after validation
+   ├─ windows/forge.iss           # Inno Setup script
+   └─ mac/README.md               # notes for dmg/notarization
+```
+
+---
+
+## Branding (FORGE)
+- **Name:** FORGE — *Where Concepts Become Systems*
+- **Icon:** Ember‑orange hammer striking a stylized neural circuit
+- **Colors:** Ember `#FF6E00`, Graphite `#1C1C1C`, Slate `#2B2B2B`
+- **Default Theme:** Dark; orange highlights on active jobs
+
+---
+
+## Root: `replit.yaml`
+```yaml
+services:
+  - name: forge-backend
+    run: uvicorn backend.app:app --host 0.0.0.0 --port 8000
+    env:
+      MODE: CLOUD
+      LLM_PROVIDER: AUTO
+      LMSTUDIO_BASE_URL: http://localhost:1234/v1
+      LMSTUDIO_MODEL: gpt-oss-20b
+      OPENAI_MODEL: gpt-4.1-mini
+    resources: { memory: 1024, cpus: 1 }
+    ports: [8000]
+
+  - name: forge-frontend
+    run: cd frontend && npm install && npm run dev -- --host 0.0.0.0 --port 5173
+    resources: { memory: 512, cpus: 1 }
+    ports: [5173]
+
+  - name: forge-worker
+    run: python -m backend.worker.queue_worker
+    env:
+      MODE: CLOUD
+      LLM_PROVIDER: AUTO
+    resources: { memory: 512, cpus: 1 }
+```
+
+## Root: `.env.example`
+```
+# Runtime
+MODE=LOCAL
+LLM_PROVIDER=AUTO            # AUTO|LMSTUDIO|OPENAI
+
+# LM Studio (OpenAI‑compatible)
+LMSTUDIO_BASE_URL=http://localhost:1234/v1
+LMSTUDIO_MODEL=gpt-oss-20b
+
+# OpenAI Cloud
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4.1-mini
+
+# System
+WORKSPACE_ROOT=workspaces
+DB_PATH=builder.db
+MAX_ITERS=3
+MAX_INPUT_CHARS=120000
+MAX_REPLY_TOKENS=2048
+```
+
+---
+
+## Backend: `pyproject.toml`
+```toml
+[project]
+name = "forge-backend"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi",
+  "uvicorn[standard]",
+  "pydantic",
+  "python-dotenv",
+  "requests",
+  "jinja2",
+  "sqlalchemy",
+  "urllib3<2.3",
+  "pytest",
+]
+[tool.pytest.ini_options]
+addopts = "-q"
+```
+
+## Backend: `config.py`
+```python
+from pydantic import BaseSettings
+
+class Settings(BaseSettings):
+    MODE: str = "LOCAL"                # LOCAL|CLOUD
+    LLM_PROVIDER: str = "AUTO"         # AUTO|LMSTUDIO|OPENAI
+
+    LMSTUDIO_BASE_URL: str = "http://localhost:1234/v1"
+    LMSTUDIO_MODEL: str = "gpt-oss-20b"
+
+    OPENAI_API_KEY: str | None = None
+    OPENAI_MODEL: str = "gpt-4.1-mini"
+
+    WORKSPACE_ROOT: str = "workspaces"
+    DB_PATH: str = "builder.db"
+    MAX_ITERS: int = 3
+
+    MAX_INPUT_CHARS: int = 120_000
+    MAX_REPLY_TOKENS: int = 2048
+
+settings = Settings()
+```
+
+## Backend: Providers
+### `providers/base.py`
+```python
+from abc import ABC, abstractmethod
+class LLM(ABC):
+    @abstractmethod
+    def complete(self, *, system: str, user: str, max_tokens: int) -> str: ...
+```
+
+### `providers/lmstudio.py`
+```python
+import requests
+from backend.config import settings
+from .base import LLM
+
+class LMStudioProvider(LLM):
+    def complete(self, *, system: str, user: str, max_tokens: int) -> str:
+        url = f"{settings.LMSTUDIO_BASE_URL}/chat/completions"
+        payload = {
+            "model": settings.LMSTUDIO_MODEL,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            "max_tokens": max_tokens,
+            "temperature": 0.2,
+        }
+        r = requests.post(url, json=payload, timeout=120)
+        r.raise_for_status()
+        return r.json()["choices"][0]["message"]["content"].strip()
+```
+
+### `providers/openai_cloud.py`
+```python
+import requests
+from backend.config import settings
+from .base import LLM
+
+class OpenAIProvider(LLM):
+    def complete(self, *, system: str, user: str, max_tokens: int) -> str:
+        url = "https://api.openai.com/v1/chat/completions"
+        headers = {"Authorization": f"Bearer {settings.OPENAI_API_KEY}"}
+        payload = {
+            "model": settings.OPENAI_MODEL,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            "max_tokens": max_tokens,
+            "temperature": 0.2,
+        }
+        r = requests.post(url, headers=headers, json=payload, timeout=120)
+        r.raise_for_status()
+        return r.json()["choices"][0]["message"]["content"].strip()
+```
+
+## Backend: `services/llm_router.py`
+```python
+from backend.config import settings
+from backend.providers.lmstudio import LMStudioProvider
+from backend.providers.openai_cloud import OpenAIProvider
+from backend.storage.db import get_runtime_provider
+
+# Priority: UI toggle (db), then env AUTO logic
+
+def get_llm():
+    selected = (get_runtime_provider() or settings.LLM_PROVIDER or "AUTO").upper()
+    if selected == "LMSTUDIO":
+        return LMStudioProvider()
+    if selected == "OPENAI":
+        return OpenAIProvider()
+    # AUTO
+    if settings.MODE.upper() == "LOCAL":
+        return LMStudioProvider()
+    return OpenAIProvider()
+```
+
+## Backend: `services/chunker.py`
+```python
+from backend.config import settings
+
+def chunk_text(text: str, max_chars: int | None = None):
+    maxc = max_chars or settings.MAX_INPUT_CHARS
+    if len(text) <= maxc:
+        return [text]
+    chunks, i = [], 0
+    while i < len(text):
+        j = min(i + maxc, len(text))
+        k = text.rfind("\n\n", i, j)
+        if k == -1 or k <= i:
+            k = j
+        chunks.append(text[i:k])
+        i = k
+    return chunks
+```
+
+## Backend: `services/repo_scaffold.py`
+```python
+import os, uuid
+from backend.config import settings
+
+def create_workspace(job):
+    ws_root = settings.WORKSPACE_ROOT
+    os.makedirs(ws_root, exist_ok=True)
+    path = os.path.join(ws_root, f"{job['project_name'].replace(' ','_')}_{uuid.uuid4().hex[:8]}")
+    os.makedirs(path, exist_ok=True)
+    os.makedirs(os.path.join(path, "src"), exist_ok=True)
+    return path
+```
+
+## Backend: `services/evaluator.py`
+```python
+import subprocess, os
+
+def run(repo_path: str):
+    tests_dir = os.path.join(repo_path, "tests")
+    if not os.path.exists(tests_dir):
+        return True, {"tests": "no tests found; skipping"}
+    out = subprocess.run(["pytest", "-q"], cwd=repo_path, capture_output=True, text=True, timeout=180)
+    return out.returncode == 0, {"stdout": out.stdout, "stderr": out.stderr}
+```
+
+## Backend: `services/orchestrator.py`
+```python
+import os, json, re
+from backend.services.llm_router import get_llm
+from backend.services.chunker import chunk_text
+from backend.services import repo_scaffold, evaluator
+from backend.storage.db import update_job_status
+from backend.config import settings
+
+SYSTEM_PLANNER = "You are a senior software architect. Plan tasks, files, and tests. Output JSON with keys: files[], tests[], steps[]. Keep it compact."
+SYSTEM_CODER   = "You are a senior developer. Implement the files. Reply with fenced blocks: ```path/to/file\n<content>\n``` Repeat per file."
+SYSTEM_FIXER   = "You are a senior maintainer. Given failing output, reply ONLY with fenced patches as above."
+
+
+def apply_fenced(repo: str, text: str):
+    for header, body in re.findall(r"```(.*?)\n([\s\S]*?)```", text):
+        fname = header.strip().split()[0]
+        full = os.path.join(repo, fname)
+        os.makedirs(os.path.dirname(full), exist_ok=True)
+        with open(full, "w", encoding="utf-8") as f:
+            f.write(body)
+
+
+def run_build(job: dict):
+    llm = get_llm()
+    repo = repo_scaffold.create_workspace(job)
+
+    spec_chunks = chunk_text(job["spec"])
+
+    plan = llm.complete(system=SYSTEM_PLANNER, user=spec_chunks[0], max_tokens=settings.MAX_REPLY_TOKENS)
+
+    for ch in spec_chunks:
+        patch = llm.complete(system=SYSTEM_CODER, user=f"SPEC CHUNK:\n{ch}\n\nPLAN:\n{plan}", max_tokens=settings.MAX_REPLY_TOKENS)
+        apply_fenced(repo, patch)
+
+    report = None
+    for _ in range(settings.MAX_ITERS):
+        ok, report = evaluator.run(repo)
+        if ok:
+            update_job_status(job['id'], 'succeeded', report)
+            return True, repo
+        fix = llm.complete(system=SYSTEM_FIXER, user=json.dumps(report)[:settings.MAX_INPUT_CHARS], max_tokens=settings.MAX_REPLY_TOKENS)
+        apply_fenced(repo, fix)
+
+    update_job_status(job['id'], 'failed', report)
+    return False, repo
+```
+
+## Backend: Routers & App
+### `routers/health.py`
+```python
+from fastapi import APIRouter
+router = APIRouter()
+@router.get("/")
+def ok():
+    return {"status": "ok"}
+```
+
+### `routers/jobs.py`
+```python
+from fastapi import APIRouter
+from pydantic import BaseModel
+from backend.storage.db import create_job, get_job, list_jobs, set_runtime_provider
+from backend.worker.queue_worker import enqueue
+
+router = APIRouter()
+
+class JobIn(BaseModel):
+    project_name: str
+    stack: str = "python"
+    spec: str
+    max_iters: int | None = None
+
+class ProviderIn(BaseModel):
+    provider: str  # LMSTUDIO|OPENAI|AUTO
+
+@router.post("")
+def submit_job(inp: JobIn):
+    job = create_job(inp.model_dump())
+    enqueue(job["id"])  # async worker (poller)
+    return {"job_id": job["id"], "status": job["status"]}
+
+@router.get("/{job_id}")
+def status(job_id: str):
+    return get_job(job_id)
+
+@router.get("")
+def all_jobs():
+    return list_jobs()
+
+@router.post("/provider")
+def set_provider_route(inp: ProviderIn):
+    set_runtime_provider(inp.provider)
+    return {"provider": inp.provider}
+```
+
+### `app.py`
+```python
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from backend.routers import health, jobs
+
+app = FastAPI(title="FORGE")
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+app.include_router(health.router, prefix="/health", tags=["health"])
+app.include_router(jobs.router, prefix="/jobs", tags=["jobs"])
+```
+
+### `tests/test_smoke.py`
+```python
+def test_placeholder():
+    assert 1 + 1 == 2
+```
+
+---
+
+## Backend: Storage & Worker
+### `storage/db.py`
+```python
+import sqlite3, os, json, time, uuid
+from backend.config import settings
+
+os.makedirs(os.path.dirname(settings.DB_PATH) or ".", exist_ok=True)
+conn = sqlite3.connect(settings.DB_PATH, check_same_thread=False)
+cur = conn.cursor()
+cur.execute("CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, data TEXT)")
+cur.execute("CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT)")
+conn.commit()
+
+def create_job(payload: dict):
+    j = {
+        "id": uuid.uuid4().hex,
+        "project_name": payload["project_name"],
+        "stack": payload.get("stack", "python"),
+        "spec": payload["spec"],
+        "max_iters": payload.get("max_iters") or 3,
+        "status": "queued",
+        "created": time.time(),
+        "report": None,
+    }
+    cur.execute("INSERT INTO jobs (id, data) VALUES (?, ?)", (j["id"], json.dumps(j)))
+    conn.commit()
+    return j
+
+def update_job_status(job_id: str, status: str, report: dict | None = None):
+    j = get_job(job_id)
+    j["status"] = status
+    if report is not None:
+        j["report"] = report
+    cur.execute("UPDATE jobs SET data=? WHERE id=?", (json.dumps(j), job_id))
+    conn.commit()
+
+def get_job(job_id: str):
+    row = cur.execute("SELECT data FROM jobs WHERE id=?", (job_id,)).fetchone()
+    return json.loads(row[0]) if row else None
+
+def list_jobs():
+    rows = cur.execute("SELECT data FROM jobs ORDER BY json_extract(data,'$.created') DESC").fetchall()
+    return [json.loads(r[0]) for r in rows]
+
+def set_runtime_provider(provider: str):
+    cur.execute("INSERT INTO kv (k,v) VALUES ('provider',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v", (provider,))
+    conn.commit()
+
+def get_runtime_provider():
+    row = cur.execute("SELECT v FROM kv WHERE k='provider'").fetchone()
+    return row[0] if row else None
+```
+
+### `worker/queue_worker.py`
+```python
+import time
+from backend.storage.db import list_jobs, update_job_status
+from backend.services.orchestrator import run_build
+
+def enqueue(job_id: str):
+    # Queued state is already set by create_job; poller will pick it up.
+    pass
+
+def main_loop():
+    while True:
+        for j in list_jobs():
+            if j["status"] == "queued":
+                update_job_status(j["id"], "running")
+                run_build(j)
+        time.sleep(1)
+
+if __name__ == "__main__":
+    main_loop()
+```
+
+---
+
+## Frontend (Replit‑style UI)
+### `package.json`
+```json
+{
+  "name": "forge-frontend",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 5173"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "marked": "^12.0.2"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}
+```
+
+### `vite.config.js`
+```js
+export default { server: { host: true, port: 5173 } }
+```
+
+### `index.html`
+```html
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FORGE</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+```
+
+### `src/main.jsx`
+```jsx
+import React from 'react'
+import { createRoot } from 'react-dom/client'
+import App from './App'
+import './styles.css'
+createRoot(document.getElementById('root')).render(<App />)
+```
+
+### `src/api.js`
+```js
+const API = (path) => `http://localhost:8000${path}`;
+export async function submitJob(payload){
+  const r = await fetch(API('/jobs'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  return r.json();
+}
+export async function listJobs(){ const r = await fetch(API('/jobs')); return r.json(); }
+export async function getJob(id){ const r = await fetch(API(`/jobs/${id}`)); return r.json(); }
+export async function setProvider(provider){
+  const r = await fetch(API('/jobs/provider'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider})});
+  return r.json();
+}
+```
+
+### `src/panes/LeftPane.jsx`
+```jsx
+import React, { useState } from 'react'
+import { submitJob, setProvider } from '../api'
+
+export default function LeftPane(){
+  const [project_name, setName] = useState('forge-mvp')
+  const [spec, setSpec] = useState('Build a CLI that prints "FORGE"')
+  const [provider, setProv] = useState('AUTO')
+
+  async function run(){ await submitJob({ project_name, spec }) }
+  async function setProvRemote(p){ setProv(p); await setProvider(p) }
+
+  return (
+    <div className="pane left">
+      <h3>New Build</h3>
+      <input value={project_name} onChange={e=>setName(e.target.value)} placeholder="Project name"/>
+      <textarea value={spec} onChange={e=>setSpec(e.target.value)} rows={14} />
+      <button onClick={run}>Run Build</button>
+      <div className="toggle">
+        <label>Provider:</label>
+        <select value={provider} onChange={e=>setProvRemote(e.target.value)}>
+          <option>AUTO</option>
+          <option>LMSTUDIO</option>
+          <option>OPENAI</option>
+        </select>
+      </div>
+      <p className="hint">AUTO prefers LM Studio in LOCAL mode; OPENAI requires API key.</p>
+    </div>
+  )
+}
+```
+
+### `src/panes/CenterPane.jsx`
+```jsx
+import React, { useEffect, useState } from 'react'
+import { listJobs, getJob } from '../api'
+
+export default function CenterPane(){
+  const [jobs, setJobs] = useState([])
+  const [current, setCurrent] = useState(null)
+
+  useEffect(()=>{
+    const t = setInterval(async ()=>{
+      const js = await listJobs()
+      setJobs(js)
+      if(current){ setCurrent(await getJob(current.id)) }
+    }, 1000)
+    return ()=>clearInterval(t)
+  },[current])
+
+  return (
+    <div className="pane center">
+      <h3>Jobs</h3>
+      <ul className="joblist">
+        {jobs.map(j=> (
+          <li key={j.id} onClick={()=>setCurrent(j)} className={j.status}>
+            <b>{j.project_name}</b> <span>({j.status})</span>
+          </li>
+        ))}
+      </ul>
+      <div className="logs">
+        <h4>Status</h4>
+        <pre>{current ? JSON.stringify(current.report || {}, null, 2) : 'Select a job'}</pre>
+      </div>
+    </div>
+  )
+}
+```
+
+### `src/panes/RightPane.jsx`
+```jsx
+import React from 'react'
+export default function RightPane(){
+  return (
+    <div className="pane right">
+      <h3>Preview</h3>
+      <iframe title="preview" srcDoc="<html><body><h2>FORGE Preview</h2><p>Point this to built artifacts later.</p></body></html>"/>
+    </div>
+  )
+}
+```
+
+### `src/App.jsx`
+```jsx
+import React from 'react'
+import LeftPane from './panes/LeftPane'
+import CenterPane from './panes/CenterPane'
+import RightPane from './panes/RightPane'
+export default function App(){
+  return (
+    <div className="grid">
+      <LeftPane/>
+      <CenterPane/>
+      <RightPane/>
+    </div>
+  )
+}
+```
+
+### `src/styles.css`
+```css
+html, body, #root { height:100%; margin:0; font-family: Inter, system-ui, sans-serif; }
+.grid { display:grid; grid-template-columns: 1fr 1.2fr 1fr; height:100vh; background:#1C1C1C; color:#f3f3f3; }
+.pane { border-right:1px solid #2B2B2B; padding:12px; overflow:auto; }
+.pane.right { border-right:none; }
+.left textarea, .left input { width:100%; background:#2B2B2B; color:#f3f3f3; border:1px solid #3a3a3a; }
+button { padding:8px 12px; margin-top:8px; background:#FF6E00; color:#111; border:none; border-radius:6px; }
+.joblist { list-style:none; padding:0; }
+.joblist li { padding:6px; cursor:pointer; border-bottom:1px solid #2B2B2B; }
+.joblist li.running { background:#2b261e }
+.joblist li.succeeded { background:#1f2b1f }
+.joblist li.failed { background:#2b1f1f }
+.logs pre { background:#0e0e0e; color:#eaeaea; padding:8px; border-radius:6px; }
+.right iframe { width:100%; height:85vh; border:1px solid #2B2B2B; border-radius:6px; background:white; }
+.toggle { margin-top:12px; }
+```
+
+---
+
+## Electron Launcher (Desktop App)
+### `launcher/package.json`
+```json
+{
+  "name": "forge-launcher",
+  "version": "0.1.0",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.6.0"
+  },
+  "build": {
+    "appId": "com.strike.forge",
+    "productName": "FORGE",
+    "win": {
+      "icon": "icon.png",
+      "target": ["nsis"]
+    },
+    "mac": {
+      "icon": "icon.png",
+      "category": "public.app-category.developer-tools"
+    }
+  }
+}
+```
+
+### `launcher/forge-builder.config.json`
+```json
+{
+  "backendPort": 8000,
+  "frontendPort": 5173,
+  "backendPath": "../backend",
+  "frontendPath": "../frontend"
+}
+```
+
+### `launcher/main.js`
+```js
+const { app, BrowserWindow } = require('electron')
+const path = require('path')
+const { spawn } = require('child_process')
+const config = require('./forge-builder.config.json')
+
+let backendProcess
+
+function startBackend() {
+  const py = process.platform === 'win32' ? 'python' : 'python3'
+  const cwd = path.join(__dirname, config.backendPath)
+  backendProcess = spawn(py, ['-m', 'uvicorn', 'backend.app:app', '--host', '0.0.0.0', '--port', String(config.backendPort)], { cwd, shell: false })
+  backendProcess.stdout.on('data', d => console.log(`[backend] ${d}`))
+  backendProcess.stderr.on('data', d => console.error(`[backend] ${d}`))
+}
+
+function startFrontend() {
+  const cwd = path.join(__dirname, config.frontendPath)
+  const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm'
+  spawn(npm, ['run', 'dev', '--', '--host', '0.0.0.0', '--port', String(config.frontendPort)], { cwd, shell: false })
+}
+
+function createWindow() {
+  const win = new BrowserWindow({
+    width: 1600,
+    height: 900,
+    icon: path.join(__dirname, 'icon.png'),
+    webPreferences: { nodeIntegration: false }
+  })
+  win.loadURL(`http://localhost:${config.frontendPort}`)
+}
+
+app.whenReady().then(() => {
+  startBackend()
+  startFrontend()
+  setTimeout(createWindow, 1500)
+})
+
+app.on('window-all-closed', () => {
+  if (backendProcess) backendProcess.kill()
+  if (process.platform !== 'darwin') app.quit()
+})
+```
+
+### `launcher/forge.desktop.js`
+```js
+// Optional: health‑check the backend before opening the window, or fall back to a local HTML page.
+```
+
+---
+
+## Windows Installer (staged)
+### `installers/windows/forge.iss`
+```ini
+[Setup]
+AppName=FORGE
+AppVersion=0.1.0
+DefaultDirName={pf64}\FORGE
+DefaultGroupName=FORGE
+DisableProgramGroupPage=yes
+OutputBaseFilename=FORGE-Setup
+Compression=lzma
+SolidCompression=yes
+SetupIconFile=..\..\launcher\icon.ico
+
+[Files]
+Source: "..\..\launcher\dist\win-unpacked\*"; DestDir: "{app}"; Flags: recursesubdirs
+
+[Icons]
+Name: "{commondesktop}\FORGE"; Filename: "{app}\FORGE.exe"
+```
+
+---
+
+## Quick Start
+**Local LM Studio (Dev):**
+1) In LM Studio, run **openai/gpt-oss-20b** with OpenAI API server at `http://localhost:1234/v1`.
+2) Copy `.env.example` → `.env`; set `MODE=LOCAL`, `LLM_PROVIDER=AUTO`.
+3) Shell A: `cd backend && uvicorn backend.app:app --host 0.0.0.0 --port 8000`
+4) Shell B: `cd frontend && npm install && npm run dev -- --host 0.0.0.0 --port 5173`
+5) Visit `http://localhost:5173` → submit a build.
+
+**Electron Desktop App (Dev):**
+1) Ensure Node + Python 3.11 are installed (and venv active if desired).
+2) `cd launcher && npm install`
+3) `npm run start` → launches window, starts backend + frontend.
+4) `npm run dist` → builds a distributable (NSIS on Windows).
+
+---
+
+## Notes on Token Discipline
+- Chunk prompts to `MAX_INPUT_CHARS` before coding.
+- Planner reads **chunk 1** only to keep the plan small.
+- Coder replies are enforced to fenced file blocks to minimize hallucinated prose.
+- Fix loop sends trimmed stderr/stdout only.
+- Tune `.env` for larger replies if LM Studio context allows.
+
+---
+
+## Next Hardening (when ready)
+- Token‑aware chunker (tiktoken or gguf tokenizer) for gpt‑oss‑20b
+- Artifact preview server (serve `/workspaces/<job>/dist`)
+- Git init + commit per iteration; diff‑aware Fixer
+- Auth (local token) + org/workspace model
+- Switch to SQLite WAL + file locks for concurrency
