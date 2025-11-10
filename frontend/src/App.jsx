@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
 import LeftPane from './panes/LeftPane'
-import CenterPane from './panes/CenterPane'
-import RightPane from './panes/RightPane'
+import TabbedPane from './panes/TabbedPane'
 import SettingsModal from './components/SettingsModal'
 
 export default function App() {
@@ -10,10 +9,9 @@ export default function App() {
 
   return (
     <>
-      <div className="grid">
-        <LeftPane onOpenSettings={() => setSettingsOpen(true)} />
-        <CenterPane selectedJob={selectedJob} onSelectJob={setSelectedJob} />
-        <RightPane selectedJob={selectedJob} />
+      <div className="two-column-layout">
+        <LeftPane onOpenSettings={() => setSettingsOpen(true)} onJobSubmitted={setSelectedJob} />
+        <TabbedPane selectedJob={selectedJob} onSelectJob={setSelectedJob} />
       </div>
       <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </>

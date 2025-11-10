@@ -1,16 +1,32 @@
 import React, { useState } from 'react'
 import { submitJob, setProvider } from '../api'
 
-export default function LeftPane({ onOpenSettings }) {
+export default function LeftPane({ onOpenSettings, onJobSubmitted }) {
   const [project_name, setName] = useState('forge-mvp')
   const [spec, setSpec] = useState('Build a CLI that prints "FORGE" and a pytest that asserts output contains FORGE')
   const [provider, setProv] = useState('AUTO')
   const [submitting, setSubmitting] = useState(false)
+  const [activity, setActivity] = useState([])
 
   async function run() {
     setSubmitting(true)
+    const timestamp = new Date().toLocaleTimeString()
     try {
-      await submitJob({ project_name, spec })
+      const result = await submitJob({ project_name, spec })
+      setActivity(prev => [...prev, {
+        time: timestamp,
+        message: `Submitted "${project_name}"`,
+        type: 'success'
+      }])
+      if (onJobSubmitted && result.job_id) {
+        onJobSubmitted({ id: result.job_id, project_name, status: 'queued' })
+      }
+    } catch (err) {
+      setActivity(prev => [...prev, {
+        time: timestamp,
+        message: `Failed: ${err.message}`,
+        type: 'error'
+      }])
     } finally {
       setSubmitting(false)
     }
@@ -64,6 +80,20 @@ export default function LeftPane({ onOpenSettings }) {
         AUTO prefers LM Studio in LOCAL mode, OpenAI in CLOUD mode.
         OPENAI requires API key.
       </p>
+
+      {activity.length > 0 && (
+        <div className="activity-feed">
+          <h4>Activity</h4>
+          <div className="activity-list">
+            {activity.slice(-5).reverse().map((item, i) => (
+              <div key={i} className={`activity-item ${item.type}`}>
+                <span className="activity-time">{item.time}</span>
+                <span className="activity-message">{item.message}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
