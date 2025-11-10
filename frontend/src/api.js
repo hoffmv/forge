@@ -1,11 +1,4 @@
-const getApiUrl = () => {
-  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-    return `https://${window.location.hostname.replace(/^[^.]+/, process.env.REPL_SLUG || 'replit')}/api`;
-  }
-  return 'http://localhost:8000';
-};
-
-const API = (path) => `${getApiUrl()}${path}`;
+const API = (path) => `/api${path}`;
 
 export async function submitJob(payload) {
   const r = await fetch(API('/jobs'), {
