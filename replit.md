@@ -78,6 +78,15 @@ forge/
 7. Final status: succeeded (both approved) or failed (max iterations reached)
 
 ## Recent Changes
+- **November 14, 2025 (Phase 10)**: Comprehensive README Documentation ✅ COMPLETE
+  - Created detailed README.md with full project documentation
+  - Documented Git pull workflow for receiving updates from GitHub
+  - Added instructions for running from source vs. using installer
+  - Included LM Studio and OpenAI setup guides
+  - Comprehensive troubleshooting section
+  - Development workflow and contribution guidelines
+  - Users can now easily update FORGE on their Windows machine via git pull
+
 - **November 14, 2025 (Phase 9)**: AI Architect Review System & Preview Tab ✅ COMPLETE
   - **AI Architect Service**: Intelligent code reviewer analyzes generated code for:
     - Bug detection (syntax errors, logic bugs, runtime errors, edge cases)
