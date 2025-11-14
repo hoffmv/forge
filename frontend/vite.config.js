@@ -9,7 +9,8 @@ export default defineConfig({
     port: 5000,
     strictPort: true,
     allowedHosts: true,
-    hmr: { clientPort: 443 },
+    // HMR config: Use port 443 for Replit, omit for localhost
+    hmr: process.env.REPL_ID ? { clientPort: 443 } : true,
     proxy: {
       '/api': {
         target: 'http://localhost:8000',
