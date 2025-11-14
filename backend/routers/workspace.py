@@ -95,3 +95,41 @@ def read_workspace_file(job_id: str, file_path: str):
         raise HTTPException(status_code=400, detail="File is not text-readable")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
+
+@router.get("/{job_id}/preview")
+def get_preview(job_id: str):
+    """Get preview information for a job's generated code"""
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    workspace_path = find_workspace_path(job)
+    if not workspace_path or not workspace_path.exists():
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    
+    # Check for README
+    readme_path = workspace_path / "README.md"
+    readme_content = ""
+    if readme_path.exists():
+        try:
+            readme_content = readme_path.read_text()
+        except Exception:
+            pass
+    
+    # Check for common web entry points (future enhancement)
+    web_entry_points = ["index.html", "app.html", "main.html"]
+    preview_url = None
+    
+    for entry in web_entry_points:
+        entry_path = workspace_path / entry
+        if entry_path.exists():
+            # For now, we don't serve the files directly
+            # This would require a web server for the generated code
+            # Future: could use a dev server or static file server
+            break
+    
+    return {
+        "preview_url": preview_url,
+        "readme": readme_content,
+        "workspace_path": str(workspace_path)
+    }

@@ -3,7 +3,7 @@ import json
 import re
 from backend.services.llm_router import get_llm
 from backend.services.chunker import chunk_text
-from backend.services import repo_scaffold, evaluator
+from backend.services import repo_scaffold, evaluator, architect
 from backend.storage.db import update_job_status, append_job_log
 from backend.config import settings
 
@@ -28,7 +28,14 @@ CRITICAL RULES:
 
 Repeat for each file. Use REAL file paths, not placeholders."""
 
-SYSTEM_FIXER = "You are a senior maintainer. Given failing output, reply ONLY with fenced code blocks as above. Put test fixes in tests/ directory."
+SYSTEM_FIXER = """You are a senior maintainer. Fix the issues described below.
+
+Reply ONLY with fenced code blocks in this format:
+```filename.py
+<fixed content here>
+```
+
+Put test fixes in tests/ directory. Fix ALL issues mentioned."""
 
 
 def apply_fenced(repo: str, text: str):
@@ -72,29 +79,69 @@ def run_build(job: dict):
                 content = f.read()
             append_job_log(job_id, 'file', {'path': fname, 'content': content})
 
-    append_job_log(job_id, 'status', '🧪 Running tests...')
-    report = None
+    # Iterative review and test loop
+    append_job_log(job_id, 'status', '🔍 Starting AI Architect review and testing...')
+    
+    test_report = None
     for iteration in range(settings.MAX_ITERS):
-        ok, report = evaluator.run(repo)
+        append_job_log(job_id, 'status', f'🔄 Iteration {iteration + 1}/{settings.MAX_ITERS}')
         
-        # Log test output
-        append_job_log(job_id, 'test', {
+        # Step 1: AI Architect Review
+        append_job_log(job_id, 'status', '   🏗️  AI Architect reviewing code...')
+        review = architect.review_code(repo)
+        
+        append_job_log(job_id, 'architect', {
             'iteration': iteration + 1,
-            'passed': ok,
-            'output': report
+            'has_issues': review.get('has_issues', False),
+            'severity': review.get('severity', 'none'),
+            'summary': review.get('summary', ''),
+            'issues': review.get('issues', [])
         })
         
-        if ok:
-            append_job_log(job_id, 'status', '✅ Build succeeded! All tests passed.')
-            update_job_status(job_id, 'succeeded', report)
+        # Step 2: Run Tests
+        append_job_log(job_id, 'status', '   🧪 Running tests...')
+        tests_ok, test_report = evaluator.run(repo)
+        
+        append_job_log(job_id, 'test', {
+            'iteration': iteration + 1,
+            'passed': tests_ok,
+            'output': test_report
+        })
+        
+        # Check if both architect and tests are satisfied
+        architect_ok = not review.get('has_issues', False)
+        
+        if architect_ok and tests_ok:
+            append_job_log(job_id, 'status', '✅ Build succeeded! AI Architect approved and all tests passed.')
+            update_job_status(job_id, 'succeeded', test_report)
             return True, repo
         
-        append_job_log(job_id, 'status', f'⚠️  Tests failed (attempt {iteration + 1}/{settings.MAX_ITERS}). Applying fixes...')
-        fix = llm.complete(system=SYSTEM_FIXER, user=json.dumps(report)[:settings.MAX_INPUT_CHARS], max_tokens=settings.MAX_REPLY_TOKENS)
+        # Prepare fix context
+        fix_context = ""
+        
+        if not architect_ok:
+            append_job_log(job_id, 'status', f'   ⚠️  AI Architect found {len(review.get("issues", []))} issue(s) (severity: {review.get("severity", "unknown")})')
+            fix_context += architect.format_review_for_fixer(review) + "\n\n"
+        
+        if not tests_ok:
+            append_job_log(job_id, 'status', '   ⚠️  Tests failed')
+            fix_context += f"# TEST FAILURES\n\n```\n{json.dumps(test_report)}\n```\n\n"
+        
+        # Apply fixes
+        append_job_log(job_id, 'status', '   🔧 Applying fixes...')
+        fix = llm.complete(
+            system=SYSTEM_FIXER,
+            user=fix_context[:settings.MAX_INPUT_CHARS],
+            max_tokens=settings.MAX_REPLY_TOKENS
+        )
         files_fixed = apply_fenced(repo, fix)
-        for fname in files_fixed:
-            append_job_log(job_id, 'status', f'   Fixed: {fname}')
+        
+        if files_fixed:
+            for fname in files_fixed:
+                append_job_log(job_id, 'status', f'      ✏️  Fixed: {fname}')
+        else:
+            append_job_log(job_id, 'status', '      ⚠️  No files were modified by the fixer')
 
     append_job_log(job_id, 'status', '❌ Build failed after maximum fix attempts.')
-    update_job_status(job_id, 'failed', report)
+    update_job_status(job_id, 'failed', test_report)
     return False, repo

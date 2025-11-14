@@ -26,13 +26,14 @@ forge/
 
 ### Backend Components
 - **Providers**: LM Studio (local) and OpenAI (cloud) LLM integrations
-- **Services**: Orchestrator with Planner → Coder → Verifier → Fixer loop
+- **Services**: Orchestrator with Planner → Coder → AI Architect → Verifier → Fixer loop
+- **AI Architect**: Intelligent code reviewer that finds bugs, architecture issues, and quality problems
 - **Storage**: SQLite for job tracking
 - **Worker**: Background job processor
 
 ### Frontend Components
 - **Left Pane**: Projects list, Build form (New/Modify toggle), and Conversational Chat (always visible at bottom)
-- **Right Pane**: Tabbed interface with Build Process, Artifacts, Jobs, Console, and Help viewers
+- **Right Pane**: Tabbed interface with Build Process, Preview, Artifacts, Jobs, Console, and Help viewers
 
 ## Branding
 - **Name**: FORGE — Where Concepts Become Systems
@@ -60,17 +61,37 @@ forge/
 - `FORGE_DATA_DIR`: Custom data directory location (optional)
 - `FORGE_ENCRYPTION_KEY`: Custom encryption key (optional, auto-generated if not set)
 
-### Workflow Orchestration
+### Workflow Orchestration (AI-Driven Iterative Refinement)
 1. User submits spec via UI
 2. Backend creates job (queued status)
 3. Worker picks job (running status)
 4. Planner creates plan from spec
 5. Coder generates files with fenced blocks
-6. Verifier runs pytest tests
-7. Fixer patches failures (up to MAX_ITERS)
-8. Final status: succeeded or failed
+6. **Iterative Review Loop** (up to MAX_ITERS):
+   - **AI Architect** reviews code for bugs, architecture, and quality issues
+   - **Verifier** runs pytest tests
+   - If both Architect approves AND tests pass → SUCCESS
+   - If either fails → **Fixer** patches issues based on:
+     - Architect feedback (specific fixes for each issue)
+     - Test failure output (pytest errors)
+   - Loop repeats until both Architect and tests are satisfied
+7. Final status: succeeded (both approved) or failed (max iterations reached)
 
 ## Recent Changes
+- **November 14, 2025 (Phase 9)**: AI Architect Review System & Preview Tab ✅ COMPLETE
+  - **AI Architect Service**: Intelligent code reviewer analyzes generated code for:
+    - Bug detection (syntax errors, logic bugs, runtime errors, edge cases)
+    - Architecture review (design patterns, modularity, maintainability)
+    - Code quality (best practices, security issues, code smells)
+    - Test coverage (comprehensive and meaningful tests)
+  - **Iterative AI-Driven Fixing**: System loops through Architect → Tests → Fixer until code is production-ready
+  - **Dual Validation**: Code must pass BOTH AI Architect approval AND pytest tests to succeed
+  - **Architect Feedback Display**: Build Process tab shows detailed review with severity badges, issue types, and specific fixes
+  - **Preview Tab**: New tab displays README or web preview of generated projects
+  - **Robust Error Handling**: Fixer always receives actionable context even when Architect returns malformed JSON
+  - **Smart Fix Context**: Fixer receives combined feedback from both Architect review and test failures
+  - Users now get Replit Agent-quality code with iterative AI-driven refinement until perfect
+
 - **November 10, 2025 (Phase 8)**: Interactive User Manual & Help System ✅ COMPLETE
   - Created comprehensive USER_MANUAL.md covering all features and workflows
   - Added Help tab with three modes: Browse Manual, Search Manual, and Ask AI

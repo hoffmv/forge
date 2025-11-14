@@ -801,3 +801,270 @@ button:disabled {
   white-space: pre;
   tab-size: 2;
 }
+
+/* AI Architect Review Styles */
+.log-architect {
+  padding: 16px;
+  background: #1a1a2e;
+  border-left: 4px solid #4a90e2;
+  margin: 12px 0;
+  border-radius: 6px;
+}
+
+.log-architect .log-header {
+  color: #4a90e2;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.architect-summary {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.severity-badge {
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.severity-badge.critical {
+  background: #ff4444;
+  color: #fff;
+}
+
+.severity-badge.major {
+  background: #ff8c00;
+  color: #fff;
+}
+
+.severity-badge.minor {
+  background: #ffaa00;
+  color: #000;
+}
+
+.severity-badge.none {
+  background: #4caf50;
+  color: #fff;
+}
+
+.architect-status {
+  font-size: 13px;
+  color: #ccc;
+}
+
+.architect-text {
+  color: #bbb;
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 12px 0;
+}
+
+.architect-issues {
+  margin-top: 16px;
+}
+
+.issue-item {
+  background: #0e0e0e;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  border-left: 3px solid #666;
+}
+
+.issue-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.issue-type {
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.issue-type.bug {
+  background: #ff4444;
+  color: #fff;
+}
+
+.issue-type.architecture {
+  background: #4a90e2;
+  color: #fff;
+}
+
+.issue-type.quality {
+  background: #ffaa00;
+  color: #000;
+}
+
+.issue-type.test {
+  background: #9c27b0;
+  color: #fff;
+}
+
+.issue-file {
+  font-size: 11px;
+  color: #888;
+  font-family: 'Monaco', monospace;
+}
+
+.issue-desc {
+  color: #ddd;
+  font-size: 13px;
+  margin: 8px 0;
+  line-height: 1.5;
+}
+
+.issue-fix {
+  color: #4caf50;
+  font-size: 12px;
+  background: #1a2a1a;
+  padding: 8px;
+  border-radius: 4px;
+  margin-top: 8px;
+}
+
+/* Preview Tab Styles */
+.preview-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: #1C1C1C;
+}
+
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #2B2B2B;
+  background: #0e0e0e;
+}
+
+.preview-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #FF6E00;
+}
+
+.btn-secondary {
+  padding: 8px 16px;
+  background: #2B2B2B;
+  color: #f3f3f3;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.btn-secondary:hover {
+  background: #3a3a3a;
+}
+
+.preview-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-iframe {
+  flex: 1;
+  width: 100%;
+  border: none;
+  background: white;
+}
+
+.preview-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-state {
+  text-align: center;
+  max-width: 500px;
+  padding: 40px;
+}
+
+.empty-state h3 {
+  color: #FF6E00;
+  margin: 0 0 12px 0;
+  font-size: 20px;
+}
+
+.empty-state p {
+  color: #999;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 8px 0;
+}
+
+.status-hint {
+  margin-top: 16px;
+  padding: 12px;
+  background: #2B2B2B;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.status-queued {
+  color: #ffaa00;
+}
+
+.status-running {
+  color: #4a90e2;
+}
+
+.status-failed {
+  color: #ff4444;
+}
+
+.status-succeeded {
+  color: #4caf50;
+}
+
+.preview-readme {
+  padding: 20px;
+  overflow: auto;
+}
+
+.readme-header {
+  margin-bottom: 20px;
+}
+
+.readme-header h4 {
+  color: #FF6E00;
+  margin: 0 0 8px 0;
+}
+
+.readme-header .hint {
+  color: #999;
+  font-size: 13px;
+}
+
+.readme-content {
+  background: #0e0e0e;
+  padding: 20px;
+  border-radius: 6px;
+  color: #eaeaea;
+  font-family: 'Monaco', monospace;
+  font-size: 13px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}

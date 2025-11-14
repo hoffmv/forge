@@ -62,6 +62,39 @@ export default function BuildProcessTab({ selectedJob }) {
               </pre>
             </div>
           )}
+          
+          {log.type === 'architect' && (
+            <div className="log-architect">
+              <div className="log-header">
+                🏗️ AI Architect Review (Iteration {log.content.iteration})
+              </div>
+              <div className="architect-summary">
+                <span className={`severity-badge ${log.content.severity}`}>
+                  {log.content.severity}
+                </span>
+                <span className="architect-status">
+                  {log.content.has_issues ? '⚠️ Issues Found' : '✅ Code Approved'}
+                </span>
+              </div>
+              {log.content.summary && (
+                <div className="architect-text">{log.content.summary}</div>
+              )}
+              {log.content.issues && log.content.issues.length > 0 && (
+                <div className="architect-issues">
+                  {log.content.issues.map((issue, idx) => (
+                    <div key={idx} className="issue-item">
+                      <div className="issue-header">
+                        <span className={`issue-type ${issue.type}`}>{issue.type}</span>
+                        <span className="issue-file">{issue.file}:{issue.line}</span>
+                      </div>
+                      <div className="issue-desc">{issue.description}</div>
+                      <div className="issue-fix">💡 {issue.fix}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       ))}
       
