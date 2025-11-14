@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from 'react'
-import { getAPI } from '../api'
+
+function getAPIUrl(path) {
+  if (window.location.protocol === 'file:') {
+    return `http://localhost:8000${path}`
+  }
+  return `/api${path}`
+}
 
 export default function PreviewTab({ selectedJob }) {
   const [previewUrl, setPreviewUrl] = useState(null)
@@ -16,7 +22,7 @@ export default function PreviewTab({ selectedJob }) {
 
     const fetchPreview = async () => {
       try {
-        const res = await fetch(`${getAPI()}/workspace/${selectedJob.id}/preview`)
+        const res = await fetch(getAPIUrl(`/workspace/${selectedJob.id}/preview`))
         const data = await res.json()
         
         if (data.preview_url) {
