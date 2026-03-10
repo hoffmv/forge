@@ -1,0 +1,14 @@
+{
+  "lm_studio_url": "http://localhost:1234/v1",
+  "forge_host": "localhost",
+  "forge_port": 8000,
+  "frontend_port": 3000,
+  "projects_path": "C:\\Programs\\forge\\projects",
+  "logs_path": "C:\\Programs\\forge\\logs",
+  "model_selection": "auto",
+  "model_override": null,
+  "max_fix_iterations": 10,
+  "circular_error_threshold": 3,
+  "context_strategy": "full_dump",
+  "github_enabled": false
+}

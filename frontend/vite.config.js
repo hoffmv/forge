@@ -1,15 +1,15 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   base: "./",
   server: {
     host: "0.0.0.0",
-    port: 5000,
-    strictPort: true,
+    port: 3000,
+    strictPort: false,
     allowedHosts: true,
-    // HMR config: Use port 443 for Replit, omit for localhost
     hmr: process.env.REPL_ID ? { clientPort: 443 } : true,
     proxy: {
       '/api': {

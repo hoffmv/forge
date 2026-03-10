@@ -49,6 +49,9 @@ builder.db
 *.db
 .env
 .forge_key
+logs/
+projects/
+nul
 
 # Electron
 out/
